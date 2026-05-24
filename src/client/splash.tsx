@@ -3,17 +3,14 @@ import './index.css';
 import { context, requestExpandedMode } from '@devvit/web/client';
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { InboxItem } from '../shared/types.js';
-
 const Splash = () => {
   const [pendingCount, setPendingCount] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch('/api/inbox')
+    fetch('/api/inbox/meta')
       .then((r) => r.json())
-      .then((items: InboxItem[]) => {
-        const pending = items.filter((i) => i.status === 'pending').length;
-        setPendingCount(pending);
+      .then((meta: { pendingCount: number }) => {
+        setPendingCount(meta.pendingCount);
       })
       .catch(() => setPendingCount(0));
   }, []);

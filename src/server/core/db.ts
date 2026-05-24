@@ -12,6 +12,7 @@ const INBOX_KEY = (id: string) => `modscribe:inbox:${id}`;
 const INBOX_INDEX = 'modscribe:inbox:index';
 
 const DRAFT_KEY = (id: string) => `modscribe:draft:${id}`;
+const DRAFT_SOURCE_KEY = (sourceId: string) => `modscribe:draft:source:${sourceId}`;
 const DRAFT_INDEX = 'modscribe:draft:index';
 
 const ARCHIVE_KEY = (id: string) => `modscribe:archive:${id}`;
@@ -39,13 +40,18 @@ export async function getNominee(id: string): Promise<InboxItem | null> {
   return JSON.parse(raw) as InboxItem;
 }
 
+const parseJsonRows = <T>(raws: (string | null)[]): T[] =>
+  raws
+    .filter((raw): raw is string => raw !== null)
+    .map((raw) => JSON.parse(raw) as T);
+
 export async function listNominees(): Promise<InboxItem[]> {
   const results = await redis.zRange(INBOX_INDEX, 0, -1, { reverse: true, by: 'rank' });
   if (!results.length) return [];
 
-  const ids = results.map((r) => r.member);
-  const items = await Promise.all(ids.map((id) => getNominee(id)));
-  return items.filter((item): item is InboxItem => item !== null);
+  const keys = results.map((r) => INBOX_KEY(r.member));
+  const raws = await redis.mGet(keys);
+  return parseJsonRows<InboxItem>(raws);
 }
 
 export async function deleteNominee(id: string): Promise<void> {
@@ -58,6 +64,9 @@ export async function deleteNominee(id: string): Promise<void> {
 export async function saveDraft(draft: Draft): Promise<void> {
   await redis.set(DRAFT_KEY(draft.id), JSON.stringify(draft));
   await redis.zAdd(DRAFT_INDEX, { score: draft.updatedAt, member: draft.id });
+  if (draft.sourceId) {
+    await redis.set(DRAFT_SOURCE_KEY(draft.sourceId), draft.id);
+  }
 }
 
 export async function getDraft(id: string): Promise<Draft | null> {
@@ -66,13 +75,23 @@ export async function getDraft(id: string): Promise<Draft | null> {
   return JSON.parse(raw) as Draft;
 }
 
+export async function getDraftBySourceId(sourceId: string): Promise<Draft | null> {
+  const draftId = await redis.get(DRAFT_SOURCE_KEY(sourceId));
+  if (draftId) {
+    const draft = await getDraft(draftId);
+    if (draft) return draft;
+  }
+  const drafts = await listDrafts();
+  return drafts.find((d) => d.sourceId === sourceId) ?? null;
+}
+
 export async function listDrafts(): Promise<Draft[]> {
   const results = await redis.zRange(DRAFT_INDEX, 0, -1, { reverse: true, by: 'rank' });
   if (!results.length) return [];
 
-  const ids = results.map((r) => r.member);
-  const drafts = await Promise.all(ids.map((id) => getDraft(id)));
-  return drafts.filter((d): d is Draft => d !== null);
+  const keys = results.map((r) => DRAFT_KEY(r.member));
+  const raws = await redis.mGet(keys);
+  return parseJsonRows<Draft>(raws);
 }
 
 export async function deleteDraft(id: string): Promise<void> {
@@ -97,14 +116,9 @@ export async function listArchiveRecords(): Promise<ArchiveRecord[]> {
   const results = await redis.zRange(ARCHIVE_INDEX, 0, -1, { reverse: true, by: 'rank' });
   if (!results.length) return [];
 
-  const ids = results.map((r) => r.member);
-  const records = await Promise.all(
-    ids.map(async (id) => {
-      const raw = await redis.get(ARCHIVE_KEY(id));
-      return raw ? (JSON.parse(raw) as ArchiveRecord) : null;
-    })
-  );
-  return records.filter((r): r is ArchiveRecord => r !== null);
+  const keys = results.map((r) => ARCHIVE_KEY(r.member));
+  const raws = await redis.mGet(keys);
+  return parseJsonRows<ArchiveRecord>(raws);
 }
 
 // ─── WikiArticle CRUD ──────────────────────────────────────────────────────
@@ -135,9 +149,9 @@ export async function listArticles(): Promise<WikiArticle[]> {
   const results = await redis.zRange(ARTICLE_INDEX, 0, -1, { reverse: true, by: 'rank' });
   if (!results.length) return [];
 
-  const ids = results.map((r) => r.member);
-  const articles = await Promise.all(ids.map((id) => getArticle(id)));
-  return articles.filter((a): a is WikiArticle => a !== null);
+  const keys = results.map((r) => ARTICLE_KEY(r.member));
+  const raws = await redis.mGet(keys);
+  return parseJsonRows<WikiArticle>(raws);
 }
 
 // ─── Structure proposals ─────────────────────────────────────────────────────
@@ -151,14 +165,9 @@ export async function listProposals(): Promise<StructureProposal[]> {
   const results = await redis.zRange(PROPOSAL_INDEX, 0, -1, { reverse: true, by: 'rank' });
   if (!results.length) return [];
 
-  const ids = results.map((r) => r.member);
-  const proposals = await Promise.all(
-    ids.map(async (id) => {
-      const raw = await redis.get(PROPOSAL_KEY(id));
-      return raw ? (JSON.parse(raw) as StructureProposal) : null;
-    })
-  );
-  return proposals.filter((p): p is StructureProposal => p !== null);
+  const keys = results.map((r) => PROPOSAL_KEY(r.member));
+  const raws = await redis.mGet(keys);
+  return parseJsonRows<StructureProposal>(raws);
 }
 
 export async function getProposal(id: string): Promise<StructureProposal | null> {

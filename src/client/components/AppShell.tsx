@@ -1,63 +1,78 @@
 import type { ReactNode } from 'react';
 
-export type AppTab = 'desk' | 'wiki' | 'archive' | 'settings';
+export type AppOverlay = 'library' | 'archive' | 'settings';
 
 type AppShellProps = {
-  activeTab: AppTab;
   deskPending: number;
-  onTabChange: (tab: AppTab) => void;
+  menuOpen: boolean;
+  onMenuToggle: () => void;
+  onOpenOverlay: (overlay: AppOverlay) => void;
   children: ReactNode;
   toast: ReactNode;
 };
 
 export const AppShell = ({
-  activeTab,
   deskPending,
-  onTabChange,
+  menuOpen,
+  onMenuToggle,
+  onOpenOverlay,
   children,
   toast,
 }: AppShellProps) => (
   <div className="layout">
     <header className="topbar">
       <span className="topbar-logo">ModScribe</span>
-      <span className="topbar-subtitle">Living subreddit wiki</span>
+      {deskPending > 0 && (
+        <span className="topbar-pending" title="Pending on desk">
+          {deskPending} pending
+        </span>
+      )}
+      <div className="topbar-actions">
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm menu-trigger"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={onMenuToggle}
+        >
+          More
+        </button>
+        {menuOpen && (
+          <>
+            <div className="menu-backdrop" role="presentation" onClick={onMenuToggle} />
+            <div className="menu-dropdown" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => onOpenOverlay('library')}
+              >
+                Library
+                <span className="menu-item-hint">Drafts & articles</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => onOpenOverlay('archive')}
+              >
+                Archive
+                <span className="menu-item-hint">Cleared sources</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => onOpenOverlay('settings')}
+              >
+                Settings
+                <span className="menu-item-hint">Watch, discover, AI</span>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </header>
-
-    <nav className="tabs">
-      <button
-        type="button"
-        id="tab-desk"
-        className={`tab ${activeTab === 'desk' ? 'active' : ''}`}
-        onClick={() => onTabChange('desk')}
-      >
-        Desk
-        {deskPending > 0 && <span className="tab-badge">{deskPending}</span>}
-      </button>
-      <button
-        type="button"
-        id="tab-wiki"
-        className={`tab ${activeTab === 'wiki' ? 'active' : ''}`}
-        onClick={() => onTabChange('wiki')}
-      >
-        Wiki
-      </button>
-      <button
-        type="button"
-        id="tab-archive"
-        className={`tab ${activeTab === 'archive' ? 'active' : ''}`}
-        onClick={() => onTabChange('archive')}
-      >
-        Archive
-      </button>
-      <button
-        type="button"
-        id="tab-settings"
-        className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
-        onClick={() => onTabChange('settings')}
-      >
-        Settings
-      </button>
-    </nav>
 
     <main className="main-content">{children}</main>
     {toast}

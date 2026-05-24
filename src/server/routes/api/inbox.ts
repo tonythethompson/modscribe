@@ -17,18 +17,24 @@ import {
 } from '../../core/db.js';
 import { attachSourceToArticle, resolveArticleForDraft } from '../../core/articles.js';
 import { generateWikiDraft } from '../../core/generator.js';
+import { trimInboxForList } from '../../core/trimPayload.js';
 
 export const inboxRouter = new Hono();
 
 /** GET /api/inbox/meta */
 inboxRouter.get('/meta', async (c) => {
-  return c.json({ subredditName: context.subredditName });
+  const items = await listNominees();
+  const pendingCount = items.filter((i) => i.status === 'pending').length;
+  return c.json({
+    subredditName: context.subredditName,
+    pendingCount,
+  });
 });
 
 /** GET /api/inbox */
 inboxRouter.get('/', async (c) => {
   const items = await listNominees();
-  return c.json<InboxItem[]>(items);
+  return c.json<InboxItem[]>(items.map(trimInboxForList));
 });
 
 /** PATCH /api/inbox/:id — save desk categorization hints */

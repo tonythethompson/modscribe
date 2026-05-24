@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap');
-
 /* ─── Design tokens (Editorial Archivist) ───────────────────────────────────── */
 :root {
   --bg: #faf7f2;
@@ -96,7 +94,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text-primary);
-  font-family: 'Source Sans 3', system-ui, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -126,82 +124,117 @@ html, body {
 }
 
 .topbar-logo {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--accent);
 }
 
-.topbar-subtitle {
-  font-size: 11px;
-  color: var(--text-muted);
+.topbar-pending {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
   margin-left: auto;
 }
 
-/* ─── Navigation tabs ────────────────────────────────────────────────────────── */
-.tabs {
+.topbar-actions {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.menu-trigger {
+  margin-left: 8px;
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 200px;
+  padding: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.menu-item {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
-  padding: 8px 12px 0;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.menu-item-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.overlay-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.overlay-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.tab {
+.overlay-bar-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.overlay-body {
+  flex: 1;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  cursor: pointer;
-  transition: color var(--transition), background var(--transition);
-  position: relative;
+  flex-direction: column;
 }
 
-.tab::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: transparent;
-  border-radius: 2px 2px 0 0;
-  transition: background var(--transition);
+.overlay-body .panel {
+  border-radius: 0;
 }
 
-.tab:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.tab.active {
+.link-btn {
+  font: inherit;
+  font-size: inherit;
   color: var(--accent);
-}
-
-.tab.active::after {
-  background: var(--accent);
-}
-
-.tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--accent);
-  color: white;
-  border-radius: 99px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 /* ─── Panel / scroll area ────────────────────────────────────────────────────── */
@@ -568,7 +601,7 @@ html, body {
 }
 
 .section-title {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 13px;
   font-weight: 600;
   text-transform: none;
@@ -639,6 +672,23 @@ html, body {
   position: relative;
 }
 
+.desk-mobile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  position: relative;
+}
+
+.desk-mobile-stack .inbox-pane {
+  flex-shrink: 0;
+  max-height: 38vh;
+  overflow-y: auto;
+}
+
 .mobile-desk-bar {
   display: flex;
   align-items: center;
@@ -697,7 +747,7 @@ html, body {
 }
 
 .taxonomy-label {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 6px;
@@ -723,7 +773,7 @@ html, body {
 }
 
 .splash-title {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 24px;
   font-weight: 600;
   color: var(--accent);
@@ -744,7 +794,7 @@ html, body {
 }
 
 .splash-count {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 32px;
   font-weight: 700;
   color: var(--accent);
@@ -842,4 +892,49 @@ html, body {
 
 .archive-loading {
   min-height: 120px;
+}
+
+/* ─── Desk loading skeleton ─────────────────────────────────────────────────── */
+.desk-skeleton {
+  padding: 16px;
+  gap: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-line,
+.skeleton-card {
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 0%,
+    var(--bg-hover) 50%,
+    var(--bg-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-title {
+  height: 20px;
+  width: 40%;
+  margin-bottom: 4px;
+}
+
+.skeleton-card {
+  height: 72px;
+}
+
+.skeleton-card-short {
+  height: 48px;
+  width: 85%;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }

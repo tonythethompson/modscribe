@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Draft, PublishDraftResult } from '../../../shared/types.js';
-import { deleteDraft, getDraft, listDrafts, saveDraft } from '../../core/db.js';
+import { deleteDraft, getDraft, getDraftBySourceId, listDrafts, saveDraft } from '../../core/db.js';
 import { publishDraftToWiki } from '../../core/publish.js';
 import { loadWikiPageContext } from '../../core/wiki.js';
 
@@ -10,6 +10,14 @@ export const draftsRouter = new Hono();
 draftsRouter.get('/', async (c) => {
   const drafts = await listDrafts();
   return c.json<Draft[]>(drafts);
+});
+
+/** GET /api/drafts/by-source/:sourceId — draft for a desk item (reddit post/comment id) */
+draftsRouter.get('/by-source/:sourceId', async (c) => {
+  const sourceId = c.req.param('sourceId');
+  const draft = await getDraftBySourceId(sourceId);
+  if (!draft) return c.json({ error: 'Draft not found' }, 404);
+  return c.json<Draft>(draft);
 });
 
 /** GET /api/drafts/:id — fetch a single draft */

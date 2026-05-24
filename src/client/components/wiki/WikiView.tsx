@@ -1,24 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Draft, StructureProposal, WikiArticle } from '../../../shared/types.js';
+import type {
+  Draft,
+  StructureProposal,
+  WikiArticle,
+  WikiArticleSummary,
+} from '../../../shared/types.js';
 import { apiFetch } from '../../lib/api.js';
-import { DraftEditor } from '../DraftEditor.js';
+import { getDeskBootstrapCache } from '../../lib/deskCache.js';
+import { openSubredditWiki } from '../../lib/wikiNav.js';
 
 type WikiViewProps = {
   subredditName: string;
   showToast: (msg: string) => void;
+  onEditDraft: (draft: Draft) => void;
 };
 
-export const WikiView = ({ subredditName, showToast }: WikiViewProps) => {
-  const [articles, setArticles] = useState<WikiArticle[]>([]);
+export const WikiView = ({ subredditName, showToast, onEditDraft }: WikiViewProps) => {
+  const [articles, setArticles] = useState<WikiArticleSummary[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [proposals, setProposals] = useState<StructureProposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editDraft, setEditDraft] = useState<Draft | null>(null);
 
   const load = useCallback(async () => {
+    const cached = getDeskBootstrapCache();
+    if (cached?.articles.length) {
+      setArticles(cached.articles);
+      setLoading(false);
+    }
     try {
+      const articleFetch = cached?.articles.length
+        ? Promise.resolve(cached.articles)
+        : apiFetch<WikiArticleSummary[]>('/api/articles?summary=1');
       const [a, d, p] = await Promise.all([
-        apiFetch<WikiArticle[]>('/api/articles'),
+        articleFetch,
         apiFetch<Draft[]>('/api/drafts'),
         apiFetch<StructureProposal[]>('/api/proposals'),
       ]);
@@ -26,7 +40,7 @@ export const WikiView = ({ subredditName, showToast }: WikiViewProps) => {
       setDrafts(d.filter((x) => x.status !== 'archived'));
       setProposals(p.filter((x) => x.status === 'pending'));
     } catch {
-      showToast('Failed to load wiki');
+      showToast('Failed to load library');
     } finally {
       setLoading(false);
     }
@@ -59,17 +73,6 @@ export const WikiView = ({ subredditName, showToast }: WikiViewProps) => {
     }
   };
 
-  if (editDraft) {
-    return (
-      <DraftEditor
-        subredditName={subredditName}
-        showToast={showToast}
-        initialDraft={editDraft}
-        onClose={() => setEditDraft(null)}
-      />
-    );
-  }
-
   if (loading) {
     return (
       <div className="panel center-flex">
@@ -78,7 +81,7 @@ export const WikiView = ({ subredditName, showToast }: WikiViewProps) => {
     );
   }
 
-  const byTaxonomy = new Map<string, WikiArticle[]>();
+  const byTaxonomy = new Map<string, WikiArticleSummary[]>();
   for (const article of articles) {
     const list = byTaxonomy.get(article.taxonomyPath) ?? [];
     list.push(article);
@@ -141,6 +144,15 @@ export const WikiView = ({ subredditName, showToast }: WikiViewProps) => {
               <div key={a.id} className="card">
                 <div className="card-title">{a.title}</div>
                 <div className="card-meta">/{a.slug} · {a.sourceIds.length} sources</div>
+                <div className="btn-row">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => openSubredditWiki(subredditName, a.slug)}
+                  >
+                    Open wiki page
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -152,15 +164,22 @@ export const WikiView = ({ subredditName, showToast }: WikiViewProps) => {
         <div className="card-meta">No active drafts</div>
       ) : (
         drafts.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            className="card card-btn"
-            onClick={() => setEditDraft(d)}
-          >
+          <div key={d.id} className="card">
             <div className="card-title">{d.title}</div>
             <div className="card-meta">/{d.slug}</div>
-          </button>
+            <div className="btn-row">
+              <button type="button" className="btn btn-accent btn-sm" onClick={() => onEditDraft(d)}>
+                Edit draft
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => openSubredditWiki(subredditName, d.slug)}
+              >
+                Open wiki
+              </button>
+            </div>
+          </div>
         ))
       )}
     </div>

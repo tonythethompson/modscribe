@@ -193,3 +193,20 @@ export type ArchiveRequest = {
   reason: ArchiveReason;
   note?: string;
 };
+
+/** Article row for desk picker / bootstrap (no full markdown body). */
+export type WikiArticleSummary = Omit<WikiArticle, 'publicMarkdown'>;
+
+/** One round-trip desk load (GET /api/bootstrap). */
+export type DeskBootstrap = {
+  subredditName: string;
+  pendingCount: number;
+  inbox: InboxItem[];
+  articles: WikiArticleSummary[];
+};
+
+/** GET /api/inbox/meta */
+export type InboxMeta = {
+  subredditName: string;
+  pendingCount: number;
+};

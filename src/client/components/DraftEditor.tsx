@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Draft, WikiPageContext } from '../../shared/types.js';
 import { apiFetch } from '../lib/api.js';
+import { navigateTo } from '@devvit/web/client';
+import { openSubredditWiki } from '../lib/wikiNav.js';
 
 export const normalizeDraft = (draft: Draft): Draft => ({
   ...draft,
@@ -32,6 +34,7 @@ export const DraftEditor = ({
   const [editIncludeAuthor, setEditIncludeAuthor] = useState(false);
   const [publishConfirmed, setPublishConfirmed] = useState(false);
   const [wikiContext, setWikiContext] = useState<WikiPageContext | null>(null);
+  const [publishedWikiUrl, setPublishedWikiUrl] = useState<string | null>(null);
 
   const loadDrafts = useCallback(async () => {
     try {
@@ -57,15 +60,17 @@ export const DraftEditor = ({
     setEditIncludeAuthor(normalized.includeAuthor);
     setWikiContext(normalized.wikiContext);
     setPublishConfirmed(false);
+    setPublishedWikiUrl(null);
   }, []);
 
   useEffect(() => {
-    void loadDrafts().then((data) => {
-      if (initialDraft) {
-        const fresh = data.find((d) => d.id === initialDraft.id) ?? initialDraft;
-        selectDraft(fresh);
-      }
-    });
+    if (initialDraft) {
+      selectDraft(normalizeDraft(initialDraft));
+      setLoading(false);
+      void loadDrafts();
+      return;
+    }
+    void loadDrafts();
   }, [initialDraft, loadDrafts, selectDraft]);
 
   const handleSave = async () => {
@@ -105,6 +110,7 @@ export const DraftEditor = ({
       );
       const normalized = normalizeDraft(result.draft);
       setSelected(normalized);
+      setPublishedWikiUrl(result.publish.wikiUrl);
       showToast(`Wiki ${result.publish.action}`);
       await loadDrafts();
     } catch {
@@ -245,11 +251,15 @@ export const DraftEditor = ({
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() =>
-                  window.open(`https://www.reddit.com/r/${subredditName}/wiki/${editSlug}`, '_blank')
-                }
+                onClick={() => {
+                  if (publishedWikiUrl) {
+                    navigateTo(publishedWikiUrl);
+                  } else {
+                    openSubredditWiki(subredditName, editSlug);
+                  }
+                }}
               >
-                Open wiki
+                {publishedWikiUrl ? 'View on Reddit' : 'Open wiki'}
               </button>
               {onClose && (
                 <button type="button" className="btn btn-ghost" onClick={onClose}>

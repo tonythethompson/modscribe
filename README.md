@@ -10,7 +10,9 @@ Built on [Reddit Devvit Web](https://developers.reddit.com/) — React 19, Hono,
 
 ## Why modscribe exists
 
-Most subreddit wikis decay because maintenance is manual: find the thread, summarize it, paste into a page, repeat. modscribe flips the workflow:
+**How Reddit wikis actually work:** your subreddit already has (or can have) a normal wiki — a set of pages like rules, FAQ, guides, and megathread summaries. Mods edit those pages in Reddit’s wiki UI. Pages are not “one post = one wiki page”; they’re curated documents that may never mention the threads they came from.
+
+**Where it breaks down:** the useful material still lives in the feed. Someone asks the same question every week. A great explanation sits in a six-month-old comment thread. Two pages overlap (“FAQ” vs “Common questions”). Updating the wiki means remembering that thread, opening the right page, and rewriting by hand — usually after someone complains the wiki is outdated.
 
 | Old habit | modscribe |
 |-----------|-----------|
@@ -19,6 +21,17 @@ Most subreddit wikis decay because maintenance is manual: find the thread, summa
 | Delete or lose low-signal threads | **Archive** with reasons (searchable later) |
 | Hope mods notice good posts | **Watch** + **discover** + optional **scheduled scans** |
 | Merge duplicate pages by hand | **Merge / split proposals** when autonomy is high |
+ModScribe is a **mod-only maintenance layer** on top of that wiki. It does not replace Reddit’s page model; it helps you keep pages accurate and consolidated:
+
+| Wiki reality | What ModScribe adds |
+|--------------|---------------------|
+| Pages are long-lived; posts are ephemeral | A **Desk** of candidate posts/comments linked to the pages they should update |
+| You choose which page to edit | **Categorize first** (taxonomy + target page), then generate a draft |
+| Low-signal threads aren’t wiki material | **Archive** with reasons — off the desk, searchable, not published |
+| Good content is easy to miss | **Watch**, **discover**, and optional **scheduled** scans into the desk |
+| Overlapping or bloated pages | **Merge / split proposals** (when autonomy is set to restructure) |
+
+Internally, ModScribe tracks **articles** (logical wiki targets) and many **sources** (thing IDs) per article, so drafts can synthesize several threads into one page update — then you publish to the existing subreddit wiki slug you already use.
 
 **Product rule:** automate discovery and drafting; keep publication under moderator control.
 
@@ -120,7 +133,7 @@ flowchart LR
 ### Install & playtest
 
 ```bash
-git clone https://github.com/YOUR_ORG/modscribe.git
+git clone https://github.com/tonythethompson/modscribe.git
 cd modscribe
 npm install
 npm run login

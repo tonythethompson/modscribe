@@ -1,12 +1,17 @@
 import { Hono } from 'hono';
 import type { WikiArticle } from '../../../shared/types.js';
 import { getArticle, getArticleBySlug, listArticles } from '../../core/db.js';
+import { toArticleSummary } from '../../core/trimPayload.js';
+import type { WikiArticle, WikiArticleSummary } from '../../../shared/types.js';
 
 export const articlesRouter = new Hono();
 
-/** GET /api/articles */
+/** GET /api/articles — ?summary=1 omits markdown bodies (faster desk picker) */
 articlesRouter.get('/', async (c) => {
   const articles = await listArticles();
+  if (c.req.query('summary') === '1') {
+    return c.json<WikiArticleSummary[]>(articles.map(toArticleSummary));
+  }
   return c.json<WikiArticle[]>(articles);
 });
 

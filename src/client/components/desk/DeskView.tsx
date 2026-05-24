@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 
-import type { ArchiveReason, Draft, InboxItem, WikiArticle } from '../../../shared/types.js';
+import type {
+  ArchiveReason,
+  DeskBootstrap,
+  Draft,
+  InboxItem,
+  WikiArticleSummary,
+} from '../../../shared/types.js';
 
 import { DEFAULT_TAXONOMY, ARCHIVE_REASON_LABELS } from '../../../shared/constants.js';
 
@@ -8,18 +14,16 @@ import { apiFetch } from '../../lib/api.js';
 
 import { useMediaLayout } from '../../hooks/useMediaLayout.js';
 
-import { DraftEditor } from '../DraftEditor.js';
+import { DeskSkeleton } from '../DeskSkeleton.js';
 
 
 
 type DeskViewProps = {
-
-  subredditName: string;
-
+  bootstrap: DeskBootstrap | null;
   showToast: (msg: string) => void;
-
   onPendingChange: (n: number) => void;
-
+  onEditDraft: (draft: Draft) => void;
+  onOpenSettings: () => void;
 };
 
 
@@ -40,16 +44,9 @@ type CategorizeState = {
 
 
 
-type MobileScreen = 'list' | 'detail';
-
-
-
 function defaultCategorize(
-
   item: InboxItem | null,
-
-  articles: WikiArticle[]
-
+  articles: WikiArticleSummary[]
 ): CategorizeState {
 
   const taxonomyPath = item?.suggestedCategory ?? DEFAULT_TAXONOMY[0] ?? 'Uncategorized';
@@ -78,13 +75,18 @@ function defaultCategorize(
 
 
 
-export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskViewProps) => {
-
+export const DeskView = ({
+  bootstrap,
+  showToast,
+  onPendingChange,
+  onEditDraft,
+  onOpenSettings,
+}: DeskViewProps) => {
   const { isDeskLayout } = useMediaLayout();
 
   const [items, setItems] = useState<InboxItem[]>([]);
 
-  const [articles, setArticles] = useState<WikiArticle[]>([]);
+  const [articles, setArticles] = useState<WikiArticleSummary[]>([]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -96,17 +98,11 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
   const [previewDraft, setPreviewDraft] = useState<Draft | null>(null);
 
-  const [editingDraft, setEditingDraft] = useState<Draft | null>(null);
-
   const [archiveReason, setArchiveReason] = useState<ArchiveReason>('not_wiki');
-
-  const [mobileScreen, setMobileScreen] = useState<MobileScreen>('list');
 
   const [archiveSheetOpen, setArchiveSheetOpen] = useState(false);
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
-
-  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
 
@@ -136,53 +132,28 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
 
 
-  const load = useCallback(async () => {
-
-    try {
-
-      const [data, articleList] = await Promise.all([
-
-        apiFetch<InboxItem[]>('/api/inbox'),
-
-        apiFetch<WikiArticle[]>('/api/articles'),
-
-      ]);
-
-      const pending = data.filter((i) => i.status === 'pending');
-
-      setItems(data);
-
-      setArticles(articleList);
-
-      onPendingChange(pending.length);
-
-      if (!selectedId && pending[0]) {
-
-        setSelectedId(pending[0].id);
-
-        setCategorize(defaultCategorize(pending[0], articleList));
-
+  const applyBootstrap = useCallback(
+    (data: DeskBootstrap, keepSelection: boolean) => {
+      setItems(data.inbox);
+      setArticles(data.articles);
+      onPendingChange(data.pendingCount);
+      if (!keepSelection) {
+        const pending = data.inbox.filter((i) => i.status === 'pending');
+        const first = pending[0] ?? data.inbox[0];
+        if (first) {
+          setSelectedId(first.id);
+          setCategorize(defaultCategorize(first, data.articles));
+        }
       }
-
-    } catch {
-
-      showToast('Failed to load desk');
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  }, [onPendingChange, selectedId, showToast]);
-
-
+    },
+    [onPendingChange]
+  );
 
   useEffect(() => {
-
-    void load();
-
-  }, [load]);
+    if (!bootstrap) return;
+    applyBootstrap(bootstrap, false);
+    setLoading(false);
+  }, [bootstrap, applyBootstrap]);
 
 
 
@@ -200,60 +171,27 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
 
 
-  const persistCategorize = useCallback(
-
-    (itemId: string, next: CategorizeState) => {
-
-      if (persistTimer.current) clearTimeout(persistTimer.current);
-
-      persistTimer.current = setTimeout(() => {
-
-        void apiFetch<InboxItem>(`/api/inbox/${itemId}`, {
-
-          method: 'PATCH',
-
-          body: JSON.stringify({
-
-            suggestedCategory: next.taxonomyPath,
-
-            suggestedArticleId: next.articleId || null,
-
-          }),
-
-        }).catch(() => {
-
-          /* best-effort */
-
-        });
-
-      }, 400);
-
-    },
-
-    []
-
-  );
-
-
+  const persistCategorize = useCallback((itemId: string, next: CategorizeState) => {
+    void apiFetch<InboxItem>(`/api/inbox/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        suggestedCategory: next.taxonomyPath,
+        suggestedArticleId: next.articleId || null,
+      }),
+    }).catch(() => {
+      /* best-effort */
+    });
+  }, []);
 
   const updateCategorize = useCallback(
-
-    (updater: (prev: CategorizeState) => CategorizeState) => {
-
+    (updater: (prev: CategorizeState) => CategorizeState, persist?: boolean) => {
       setCategorize((prev) => {
-
         const next = updater(prev);
-
-        if (selectedId) persistCategorize(selectedId, next);
-
+        if (persist && selectedId) persistCategorize(selectedId, next);
         return next;
-
       });
-
     },
-
     [persistCategorize, selectedId]
-
   );
 
 
@@ -264,12 +202,21 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
     setCategorize(defaultCategorize(item, activeArticles));
 
-    if (!isDeskLayout) {
+  };
 
-      setMobileScreen('detail');
 
+
+  const openDraftForSelected = async () => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const draft = await apiFetch<Draft>(`/api/drafts/by-source/${encodeURIComponent(selected.id)}`);
+      onEditDraft(draft);
+    } catch {
+      showToast('Draft not found — generate again from Desk');
+    } finally {
+      setBusy(false);
     }
-
   };
 
 
@@ -278,17 +225,15 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
     if (!articleId) {
 
-      updateCategorize((c) => ({
-
-        ...c,
-
-        articleId: '',
-
-        articleSlug: '',
-
-        title: selected?.snapshot.title ?? c.title,
-
-      }));
+      updateCategorize(
+        (c) => ({
+          ...c,
+          articleId: '',
+          articleSlug: '',
+          title: selected?.snapshot.title ?? c.title,
+        }),
+        true
+      );
 
       return;
 
@@ -298,19 +243,16 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
     if (!article) return;
 
-    updateCategorize((c) => ({
-
-      ...c,
-
-      articleId: article.id,
-
-      articleSlug: article.slug,
-
-      title: article.title,
-
-      taxonomyPath: article.taxonomyPath,
-
-    }));
+    updateCategorize(
+      (c) => ({
+        ...c,
+        articleId: article.id,
+        articleSlug: article.slug,
+        title: article.title,
+        taxonomyPath: article.taxonomyPath,
+      }),
+      true
+    );
 
   };
 
@@ -336,11 +278,19 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
       setArchiveSheetOpen(false);
 
-      setSelectedId(null);
+      const remaining = items.filter((i) => i.id !== selected.id);
 
-      if (!isDeskLayout) setMobileScreen('list');
+      setItems(remaining);
 
-      await load();
+      const pending = remaining.filter((i) => i.status === 'pending');
+
+      onPendingChange(pending.length);
+
+      const next = pending[0] ?? remaining[0];
+
+      setSelectedId(next?.id ?? null);
+
+      if (next) setCategorize(defaultCategorize(next, articles));
 
     } catch {
 
@@ -357,13 +307,10 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
 
   const handleGenerate = async () => {
-
     if (!selected) return;
-
+    persistCategorize(selected.id, categorize);
     setBusy(true);
-
     try {
-
       const draft = await apiFetch<Draft>(`/api/inbox/${selected.id}/draft`, {
 
         method: 'POST',
@@ -386,11 +333,15 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
       setPreviewDraft(draft);
 
-      setEditingDraft(draft);
+      setItems((prev) => {
+        const next = prev.map((i) =>
+          i.id === selected.id ? { ...i, status: 'drafted' as const } : i
+        );
+        onPendingChange(next.filter((i) => i.status === 'pending').length);
+        return next;
+      });
 
-      showToast('Draft created');
-
-      await load();
+      showToast('Draft ready — tap Edit draft');
 
     } catch {
 
@@ -434,7 +385,7 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
     if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy)) return;
 
-    if (dx < -80) setArchiveSheetOpen(true);
+    if (dx < -80) void handleArchive();
 
     if (dx > 80) void handleGenerate();
 
@@ -442,40 +393,8 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
 
 
-  if (editingDraft) {
-
-    return (
-
-      <DraftEditor
-
-        subredditName={subredditName}
-
-        showToast={showToast}
-
-        initialDraft={editingDraft}
-
-        onClose={() => setEditingDraft(null)}
-
-      />
-
-    );
-
-  }
-
-
-
   if (loading) {
-
-    return (
-
-      <div className="panel center-flex">
-
-        <div className="spinner" />
-
-      </div>
-
-    );
-
+    return <DeskSkeleton />;
   }
 
 
@@ -496,11 +415,15 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
           <div className="empty-desc">
 
-            Use <strong>Discover posts now</strong> in Settings, enable watch mode, or{' '}
-
-            <strong>Nominate for Wiki</strong> on a post or comment.
+            Enable watch mode, nominate from a post, or run a discover scan.
 
           </div>
+
+          <button type="button" className="btn btn-accent" onClick={onOpenSettings}>
+
+            Open settings
+
+          </button>
 
         </div>
 
@@ -538,17 +461,15 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
             const taxonomyPath = e.target.value;
 
-            updateCategorize((c) => ({
-
-              ...c,
-
-              taxonomyPath,
-
-              articleId: '',
-
-              articleSlug: '',
-
-            }));
+            updateCategorize(
+              (c) => ({
+                ...c,
+                taxonomyPath,
+                articleId: '',
+                articleSlug: '',
+              }),
+              true
+            );
 
           }}
 
@@ -784,7 +705,25 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
       {selected.status === 'drafted' && (
 
-        <div className="card-meta">Already drafted — open Wiki tab to edit.</div>
+        <div className="btn-row">
+
+          <button
+
+            type="button"
+
+            className="btn btn-accent"
+
+            disabled={busy}
+
+            onClick={() => void openDraftForSelected()}
+
+          >
+
+            Edit draft
+
+          </button>
+
+        </div>
 
       )}
 
@@ -820,7 +759,29 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
       {previewDraft ? (
 
-        <div className="preview-doc mono">{previewDraft.publicMarkdown}</div>
+        <>
+
+          <div className="preview-doc mono">{previewDraft.publicMarkdown}</div>
+
+          <div className="btn-row">
+
+            <button
+
+              type="button"
+
+              className="btn btn-accent btn-sm"
+
+              onClick={() => onEditDraft(previewDraft)}
+
+            >
+
+              Edit draft
+
+            </button>
+
+          </div>
+
+        </>
 
       ) : (
 
@@ -1000,53 +961,39 @@ export const DeskView = ({ subredditName, showToast, onPendingChange }: DeskView
 
       <div
 
-        className="panel desk-mobile"
+        className="panel desk-mobile-stack"
 
-        onTouchStart={mobileScreen === 'detail' ? onTouchStart : undefined}
+        onTouchStart={selected ? onTouchStart : undefined}
 
-        onTouchEnd={mobileScreen === 'detail' ? onTouchEnd : undefined}
+        onTouchEnd={selected ? onTouchEnd : undefined}
 
       >
 
-        {mobileScreen === 'list' ? (
+        {inboxList}
 
-          inboxList
-
-        ) : (
+        {selected && (
 
           <>
 
-            <div className="mobile-desk-bar">
+            <div className="swipe-hint">
+
+              Swipe left: archive · Swipe right: draft ·{' '}
 
               <button
 
                 type="button"
 
-                className="btn btn-ghost btn-sm"
+                className="link-btn"
 
-                onClick={() => {
-
-                  setMobileScreen('list');
-
-                  setArchiveSheetOpen(false);
-
-                }}
+                onClick={() => setArchiveSheetOpen(true)}
 
               >
 
-                ← Inbox
+                other reason…
 
               </button>
 
-              <span className="mobile-desk-bar-title">
-
-                {pendingItems.length} pending
-
-              </span>
-
             </div>
-
-            <div className="swipe-hint">Swipe left: Archive · Swipe right: Draft</div>
 
             {categorizePane}
 
