@@ -1,18 +1,18 @@
-# ModScribe
+# modscribe
 
 **A living wiki co-pilot for Reddit moderators.**
 
-ModScribe watches your subreddit, surfaces high-signal posts and comments on a moderator **Desk**, helps you **categorize** content into taxonomy-backed **encyclopedia articles**, and generates **reviewable Markdown drafts** for your subreddit wiki. Nothing publishes without an explicit mod action.
+modscribe watches your subreddit, surfaces high-signal posts and comments on a moderator **Desk**, helps you **categorize** content into taxonomy-backed **encyclopedia articles**, and generates **reviewable Markdown drafts** for your subreddit wiki. Nothing publishes without an explicit mod action.
 
 Built on [Reddit Devvit Web](https://developers.reddit.com/) — React 19, Hono, Redis, and optional OpenAI / Google Gemini generation.
 
 ---
 
-## Why ModScribe exists
+## Why modscribe exists
 
-Most subreddit wikis decay because maintenance is manual: find the thread, summarize it, paste into a page, repeat. ModScribe flips the workflow:
+Most subreddit wikis decay because maintenance is manual: find the thread, summarize it, paste into a page, repeat. modscribe flips the workflow:
 
-| Old habit | ModScribe |
+| Old habit | modscribe |
 |-----------|-----------|
 | One post → one wiki stub | Many sources → **one article** |
 | Draft first, organize later | **Categorize first**, then generate |
@@ -151,7 +151,7 @@ After changing `devvit.json` (triggers, scheduler, settings), **upload and upgra
 
 ## Configuration
 
-Install settings live in **Mod Tools → Apps → ModScribe → Settings**.
+Install settings live in **Mod Tools → Apps → modscribe → Settings**.
 
 | Setting | Purpose |
 |---------|---------|
