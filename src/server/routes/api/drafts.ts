@@ -1,6 +1,15 @@
 import { Hono } from 'hono';
 import type { Draft, PublishDraftResult } from '../../../shared/types.js';
-import { deleteDraft, getDraft, getDraftBySourceId, listDrafts, saveDraft } from '../../core/db.js';
+import {
+  deleteDraft,
+  getArticle,
+  getArticleBySlug,
+  getDraft,
+  getDraftBySourceId,
+  listDrafts,
+  saveArticle,
+  saveDraft,
+} from '../../core/db.js';
 import { publishDraftToWiki } from '../../core/publish.js';
 import { loadWikiPageContext } from '../../core/wiki.js';
 
@@ -107,6 +116,20 @@ draftsRouter.post('/:id/publish', async (c) => {
       updatedAt: Date.now(),
     };
     await saveDraft(updated);
+
+    const linkedArticle =
+      (existing.articleId ? await getArticle(existing.articleId) : null) ??
+      (await getArticleBySlug(result.slug));
+    if (linkedArticle) {
+      const publishedAt = updated.publishedAt ?? Date.now();
+      await saveArticle({
+        ...linkedArticle,
+        slug: result.slug,
+        redditWikiPublishedAt: publishedAt,
+        updatedAt: publishedAt,
+      });
+    }
+
     return c.json<{ draft: Draft; publish: PublishDraftResult }>({
       draft: updated,
       publish: result,

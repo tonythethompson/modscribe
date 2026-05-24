@@ -7,6 +7,7 @@ import type {
 } from '../../../shared/types.js';
 import { apiFetch } from '../../lib/api.js';
 import { getDeskBootstrapCache } from '../../lib/deskCache.js';
+import { hasLiveRedditWikiForArticle, hasLiveRedditWikiForDraft } from '../../lib/wikiLink.js';
 import { openSubredditWiki } from '../../lib/wikiNav.js';
 
 type WikiViewProps = {
@@ -143,16 +144,21 @@ export const WikiView = ({ subredditName, showToast, onEditDraft }: WikiViewProp
             {group.map((a) => (
               <div key={a.id} className="card">
                 <div className="card-title">{a.title}</div>
-                <div className="card-meta">/{a.slug} · {a.sourceIds.length} sources</div>
-                <div className="btn-row">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => openSubredditWiki(subredditName, a.slug)}
-                  >
-                    Open wiki page
-                  </button>
+                <div className="card-meta">
+                  /{a.slug} · {a.sourceIds.length} sources
+                  {hasLiveRedditWikiForArticle(a) ? ' · On Reddit wiki' : ' · In-app only'}
                 </div>
+                {hasLiveRedditWikiForArticle(a) && (
+                  <div className="btn-row">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => openSubredditWiki(subredditName, a.slug)}
+                    >
+                      View on Reddit
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -166,18 +172,23 @@ export const WikiView = ({ subredditName, showToast, onEditDraft }: WikiViewProp
         drafts.map((d) => (
           <div key={d.id} className="card">
             <div className="card-title">{d.title}</div>
-            <div className="card-meta">/{d.slug}</div>
+            <div className="card-meta">
+              /{d.slug}
+              {hasLiveRedditWikiForDraft(d) ? ' · On Reddit wiki' : ' · Not published yet'}
+            </div>
             <div className="btn-row">
               <button type="button" className="btn btn-accent btn-sm" onClick={() => onEditDraft(d)}>
                 Edit draft
               </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => openSubredditWiki(subredditName, d.slug)}
-              >
-                Open wiki
-              </button>
+              {hasLiveRedditWikiForDraft(d) && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => openSubredditWiki(subredditName, d.slug)}
+                >
+                  View on Reddit
+                </button>
+              )}
             </div>
           </div>
         ))

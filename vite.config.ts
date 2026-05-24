@@ -5,39 +5,53 @@ import { devvit } from '@devvit/start/vite';
 
 type RollupOutputOptions = {
   inlineDynamicImports?: boolean;
+  sourcemapFileNames?: string;
+};
+
+const stripDeprecatedRollupOutput = (
+  output: RollupOutputOptions | RollupOutputOptions[] | undefined
+): void => {
+  if (!output) return;
+  const items = Array.isArray(output) ? output : [output];
+  for (const item of items) {
+    delete item.inlineDynamicImports;
+    delete item.sourcemapFileNames;
+  }
 };
 
 /**
- * @devvit/start still sets rollup `inlineDynamicImports` on the server bundle.
- * Vite 8 wants `build.codeSplitting: false` instead — strip the deprecated flag here
- * until the Devvit plugin is updated.
+ * @devvit/start sets rollup options Vite 8 / Rolldown no longer accepts.
+ * Strip them here until the Devvit plugin is updated.
  */
-function fixDevvitServerCodeSplitting(): Plugin {
+function fixDevvitVite8RollupOptions(): Plugin {
   return {
-    name: 'modscribe-fix-devvit-server-code-splitting',
+    name: 'modscribe-fix-devvit-vite8-rollup',
     enforce: 'post',
     config(config) {
-      const server = config.environments?.server;
-      if (!server?.build) return;
+      const patchEnvironment = (name: 'client' | 'server') => {
+        const env = config.environments?.[name];
+        if (!env?.build) return;
 
-      // Vite 8 runtime option; typings may lag @devvit/start
-      Object.assign(server.build, { codeSplitting: false });
-
-      const stripDeprecated = (output: RollupOutputOptions | RollupOutputOptions[] | undefined) => {
-        if (!output) return;
-        const items = Array.isArray(output) ? output : [output];
-        for (const item of items) {
-          delete item.inlineDynamicImports;
+        if (name === 'server') {
+          // Vite 8 runtime option; typings may lag @devvit/start
+          Object.assign(env.build, { codeSplitting: false });
         }
+
+        stripDeprecatedRollupOutput(
+          env.build.rollupOptions?.output as RollupOutputOptions | RollupOutputOptions[]
+        );
+        const rolldown = env.build.rolldownOptions as {
+          output?: RollupOutputOptions | RollupOutputOptions[];
+        };
+        stripDeprecatedRollupOutput(rolldown?.output);
       };
 
-      stripDeprecated(server.build.rollupOptions?.output as RollupOutputOptions | RollupOutputOptions[]);
-      const rolldown = server.build.rolldownOptions as { output?: RollupOutputOptions | RollupOutputOptions[] };
-      stripDeprecated(rolldown?.output);
+      patchEnvironment('client');
+      patchEnvironment('server');
     },
   };
 }
 
 export default defineConfig({
-  plugins: [react(), tailwind(), devvit(), fixDevvitServerCodeSplitting()],
+  plugins: [react(), tailwind(), devvit(), fixDevvitVite8RollupOptions()],
 });

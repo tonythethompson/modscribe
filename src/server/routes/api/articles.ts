@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import type { WikiArticle } from '../../../shared/types.js';
 import { getArticle, getArticleBySlug, listArticles } from '../../core/db.js';
 import { toArticleSummary } from '../../core/trimPayload.js';
 import type { WikiArticle, WikiArticleSummary } from '../../../shared/types.js';

@@ -69,6 +69,8 @@ export type WikiArticle = {
   sourceIds: string[];
   status: 'active' | 'archived';
   updatedAt: number;
+  /** Set when a draft was published to the live subreddit wiki at this slug. */
+  redditWikiPublishedAt?: number;
 };
 
 export type StructureProposalKind = 'merge' | 'split';

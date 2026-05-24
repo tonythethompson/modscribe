@@ -82,7 +82,8 @@ export const DeskView = ({
   onEditDraft,
   onOpenSettings,
 }: DeskViewProps) => {
-  const { isDeskLayout } = useMediaLayout();
+  const { isDeskLayout, isMobile } = useMediaLayout();
+  const [mobileScreen, setMobileScreen] = useState<'inbox' | 'item'>('inbox');
 
   const [items, setItems] = useState<InboxItem[]>([]);
 
@@ -197,11 +198,14 @@ export const DeskView = ({
 
 
   const selectItem = (item: InboxItem) => {
-
     setSelectedId(item.id);
-
     setCategorize(defaultCategorize(item, activeArticles));
+    if (isMobile) setMobileScreen('item');
+  };
 
+  const backToMobileInbox = () => {
+    setMobileScreen('inbox');
+    setArchiveSheetOpen(false);
   };
 
 
@@ -288,9 +292,14 @@ export const DeskView = ({
 
       const next = pending[0] ?? remaining[0];
 
-      setSelectedId(next?.id ?? null);
-
-      if (next) setCategorize(defaultCategorize(next, articles));
+      if (next) {
+        setSelectedId(next.id);
+        setCategorize(defaultCategorize(next, articles));
+        if (isMobile) setMobileScreen('item');
+      } else {
+        setSelectedId(null);
+        if (isMobile) setMobileScreen('inbox');
+      }
 
     } catch {
 
@@ -679,31 +688,7 @@ export const DeskView = ({
 
       )}
 
-      {selected.status === 'pending' && !isDeskLayout && (
-
-        <div className="btn-row">
-
-          <button
-
-            type="button"
-
-            className="btn btn-accent"
-
-            disabled={busy}
-
-            onClick={() => void handleGenerate()}
-
-          >
-
-            {busy ? 'Working…' : 'Generate draft'}
-
-          </button>
-
-        </div>
-
-      )}
-
-      {selected.status === 'drafted' && (
+      {selected.status === 'drafted' && isDeskLayout && (
 
         <div className="btn-row">
 
@@ -956,59 +941,76 @@ export const DeskView = ({
 
 
   if (!isDeskLayout) {
+    const showInbox = mobileScreen === 'inbox' || !selected;
+    const showItem = mobileScreen === 'item' && selected;
 
     return (
-
       <div
-
-        className="panel desk-mobile-stack"
-
-        onTouchStart={selected ? onTouchStart : undefined}
-
-        onTouchEnd={selected ? onTouchEnd : undefined}
-
+        className="panel desk-mobile"
+        onTouchStart={showItem && selected ? onTouchStart : undefined}
+        onTouchEnd={showItem && selected ? onTouchEnd : undefined}
       >
+        {showInbox && inboxList}
 
-        {inboxList}
-
-        {selected && (
-
+        {showItem && selected && (
           <>
-
-            <div className="swipe-hint">
-
-              Swipe left: archive · Swipe right: draft ·{' '}
-
-              <button
-
-                type="button"
-
-                className="link-btn"
-
-                onClick={() => setArchiveSheetOpen(true)}
-
-              >
-
-                other reason…
-
+            <div className="mobile-desk-bar">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={backToMobileInbox}>
+                ← Inbox
               </button>
-
+              <span className="mobile-desk-bar-title">
+                {selected.snapshot.kind} · {selected.status}
+              </span>
             </div>
-
-            {categorizePane}
-
-            {previewPane}
-
+            <div className="swipe-hint">
+              Swipe left: archive · Swipe right: draft ·{' '}
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => setArchiveSheetOpen(true)}
+              >
+                other reason…
+              </button>
+            </div>
+            <div className="desk-mobile-detail">{categorizePane}</div>
+            <div className="mobile-sticky-actions">
+              {selected.status === 'pending' && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => setArchiveSheetOpen(true)}
+                >
+                  Archive
+                </button>
+              )}
+              {selected.status === 'pending' && (
+                <button
+                  type="button"
+                  className="btn btn-accent"
+                  disabled={busy}
+                  onClick={() => void handleGenerate()}
+                >
+                  {busy ? 'Working…' : 'Generate draft'}
+                </button>
+              )}
+              {selected.status === 'drafted' && (
+                <button
+                  type="button"
+                  className="btn btn-accent"
+                  disabled={busy}
+                  onClick={() => void openDraftForSelected()}
+                >
+                  Edit draft
+                </button>
+              )}
+            </div>
           </>
-
         )}
 
         {archiveSheet}
-
       </div>
-
     );
-
   }
 
 

@@ -24,7 +24,7 @@ const api = new Hono();
 
 // ─── Moderator Access Control ────────────────────────────────────────────────
 api.use('*', async (c, next) => {
-  const { userId, subredditName } = context;
+  const { userId } = context;
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   if (!(await isCurrentUserModerator())) {

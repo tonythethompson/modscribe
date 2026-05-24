@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Draft, WikiPageContext } from '../../shared/types.js';
 import { apiFetch } from '../lib/api.js';
 import { navigateTo } from '@devvit/web/client';
-import { openSubredditWiki } from '../lib/wikiNav.js';
+import { hasLiveRedditWikiForDraft } from '../lib/wikiLink.js';
+import { subredditWikiUrl } from '../lib/wikiNav.js';
 
 export const normalizeDraft = (draft: Draft): Draft => ({
   ...draft,
@@ -60,8 +61,12 @@ export const DraftEditor = ({
     setEditIncludeAuthor(normalized.includeAuthor);
     setWikiContext(normalized.wikiContext);
     setPublishConfirmed(false);
-    setPublishedWikiUrl(null);
-  }, []);
+    setPublishedWikiUrl(
+      hasLiveRedditWikiForDraft(normalized)
+        ? subredditWikiUrl(subredditName, normalized.slug)
+        : null
+    );
+  }, [subredditName]);
 
   useEffect(() => {
     if (initialDraft) {
@@ -248,28 +253,28 @@ export const DraftEditor = ({
               >
                 Publish
               </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => {
-                  if (publishedWikiUrl) {
-                    navigateTo(publishedWikiUrl);
-                  } else {
-                    openSubredditWiki(subredditName, editSlug);
-                  }
-                }}
-              >
-                {publishedWikiUrl ? 'View on Reddit' : 'Open wiki'}
-              </button>
+              {(publishedWikiUrl || (selected && hasLiveRedditWikiForDraft(selected))) && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    navigateTo(publishedWikiUrl ?? subredditWikiUrl(subredditName, editSlug));
+                  }}
+                >
+                  View on Reddit
+                </button>
+              )}
               {onClose && (
                 <button type="button" className="btn btn-ghost" onClick={onClose}>
                   Back
                 </button>
               )}
             </div>
-            {wikiContext && (
+            {wikiContext && selected && (
               <div className="card-meta">
-                Reddit wiki: {wikiContext.exists ? 'page exists' : 'new page'}
+                {hasLiveRedditWikiForDraft(selected)
+                  ? 'Live on subreddit wiki — use View on Reddit to open it.'
+                  : 'Not on subreddit wiki yet — publish when ready (button appears after publish).'}
               </div>
             )}
           </div>
