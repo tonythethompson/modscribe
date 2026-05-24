@@ -13,6 +13,115 @@
       }
     }
   },
+  "settings": {
+    "subreddit": {
+      "ignored-keywords": {
+        "type": "string",
+        "label": "Ignored Keywords",
+        "helpText": "Comma-separated list of keywords to ignore during scans (e.g. joke, sarcasm, meme).",
+        "defaultValue": ""
+      },
+      "target-flairs": {
+        "type": "string",
+        "label": "Target Post Flairs",
+        "helpText": "Comma-separated list of flairs to prioritize (e.g. Guide, Resource, Question).",
+        "defaultValue": ""
+      },
+      "min-score-threshold": {
+        "type": "number",
+        "label": "Minimum Score Threshold",
+        "helpText": "Minimum score for automatic nomination consideration.",
+        "defaultValue": 5
+      },
+      "watch-enabled": {
+        "type": "boolean",
+        "label": "Watch mode",
+        "helpText": "Automatically add posts and comments that pass filters to the Desk.",
+        "defaultValue": false
+      },
+      "discover-existing-enabled": {
+        "type": "boolean",
+        "label": "Discover existing posts",
+        "helpText": "Scan top/hot/best posts already on the subreddit and add high-signal ones to the Desk (uses the same score, keyword, and flair filters as watch mode).",
+        "defaultValue": false
+      },
+      "discover-listing": {
+        "type": "select",
+        "label": "Discover listing",
+        "helpText": "Which subreddit listing to scan when discovering existing posts.",
+        "defaultValue": "top",
+        "options": [
+          { "label": "Top", "value": "top" },
+          { "label": "Hot", "value": "hot" },
+          { "label": "Best", "value": "best" },
+          { "label": "New", "value": "new" }
+        ]
+      },
+      "discover-timeframe": {
+        "type": "select",
+        "label": "Discover timeframe (top only)",
+        "helpText": "Time window when using the Top listing.",
+        "defaultValue": "year",
+        "options": [
+          { "label": "Past hour", "value": "hour" },
+          { "label": "Today", "value": "day" },
+          { "label": "This week", "value": "week" },
+          { "label": "This month", "value": "month" },
+          { "label": "This year", "value": "year" },
+          { "label": "All time", "value": "all" }
+        ]
+      },
+      "discover-limit": {
+        "type": "number",
+        "label": "Discover batch size",
+        "helpText": "How many posts to examine per discover scan (max 100).",
+        "defaultValue": 25
+      },
+      "discover-on-install": {
+        "type": "boolean",
+        "label": "Discover on install",
+        "helpText": "Run one discover scan when the app is installed or upgraded (requires Discover existing posts).",
+        "defaultValue": false
+      },
+      "discover-schedule-enabled": {
+        "type": "boolean",
+        "label": "Scheduled discover scans",
+        "helpText": "Run discover scans automatically every 12 hours (requires Discover existing posts). Can also be toggled in the app Settings tab.",
+        "defaultValue": false
+      },
+      "autonomy-level": {
+        "type": "select",
+        "label": "Autonomy dial",
+        "helpText": "How much ModScribe does without a mod: suggest category → auto-categorize → auto-draft → merge/split proposals.",
+        "defaultValue": "suggest",
+        "options": [
+          { "label": "Suggest only", "value": "suggest" },
+          { "label": "Auto-categorize", "value": "categorize" },
+          { "label": "Auto-draft", "value": "draft" },
+          { "label": "Propose restructure", "value": "restructure" }
+        ]
+      },
+      "ai-provider": {
+        "type": "select",
+        "label": "AI Provider",
+        "helpText": "Choose how ModScribe generates wiki drafts. Set OpenAI or Gemini, then save your API key below (verified on save).",
+        "validationEndpoint": "/internal/settings/validate-ai-provider",
+        "defaultValue": "mock",
+        "options": [
+          { "label": "Mock (local template)", "value": "mock" },
+          { "label": "OpenAI", "value": "openai" },
+          { "label": "Google Gemini", "value": "gemini" }
+        ]
+      },
+      "api-key": {
+        "type": "string",
+        "label": "AI API Key",
+        "helpText": "API key for the selected provider. Reddit calls OpenAI or Gemini on save to confirm the key works.",
+        "validationEndpoint": "/internal/settings/validate-api-key",
+        "defaultValue": ""
+      }
+    }
+  },
   "media": {
     "dir": "public"
   },
@@ -23,26 +132,36 @@
   "menu": {
     "items": [
       {
-        "label": "Create a new post",
-        "description": "modscribe",
-        "location": "subreddit",
+        "label": "Nominate for Wiki",
+        "description": "Capture this post or comment as a wiki draft candidate",
+        "location": ["post", "comment"],
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/post-create"
+        "endpoint": "/internal/menu/nominate"
       }
     ]
   },
   "permissions": {
-    "reddit": {
+    "redis": true,
+    "http": {
       "enable": true,
-      "asUser": [
-        "SUBMIT_POST",
-        "SUBMIT_COMMENT",
-        "SUBSCRIBE_TO_SUBREDDIT"
-      ]
+      "domains": ["api.openai.com", "generativelanguage.googleapis.com"]
+    },
+    "reddit": {
+      "enable": true
     }
   },
   "triggers": {
-    "onAppInstall": "/internal/triggers/on-app-install"
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onPostSubmit": "/internal/triggers/on-post-submit",
+    "onCommentCreate": "/internal/triggers/on-comment-create"
+  },
+  "scheduler": {
+    "tasks": {
+      "discover-scan": {
+        "endpoint": "/internal/scheduler/discover-scan",
+        "cron": "0 */12 * * *"
+      }
+    }
   },
   "scripts": {
     "dev": "vite build --watch",

@@ -3,30 +3,28 @@ You are writing a Devvit web application that will be executed on Reddit.com.
 ## Tech Stack
 
 - **Frontend**: React 19, Tailwind CSS 4, Vite
-- **Backend**: Node.js v22 serverless environment (Devvit), Hono, TRPC
-- **Communication**: tRPC v11 for end-to-end type safety
+- **Backend**: Node.js v22 serverless environment (Devvit), Hono
+- **Communication**: REST `/api/*` from the client (`fetch`)
 - **Testing**: Vitest
 
 ## Layout & Architecture
 
 - `/src/server`: **Backend Code**. This runs in a secure, serverless environment.
-  - `trpc.ts`: Defines the API router and procedures.
   - `index.ts`: Main server entry point (Hono app).
+  - `routes/api/`: Public mod API (`inbox`, `drafts`, `archive`, `articles`, `proposals`, `settings`, `wiki`).
+  - `core/`: Redis (`db.ts`), ingest (`ingest.ts`), generator (`generator.ts`), settings (`settingsService.ts`).
   - Access `redis`, `reddit`, and `context` here via `@devvit/web/server`.
 - `/src/client`: **Frontend Code**. This is executed inside of an iFrame on reddit.com
-  - To add an entrypoint, create a HTML file and add to the mapping inside of `devvit.json`
   - Entrypoints:
-    - `game.html`: The main React entry point (Expanded View).
-    - `splash.html`: The initial React entry point (Inline View). This will be shown in the reddit.com feed. Please keep it fast and keep heavy dependencies inside of `game.html`
-    - `trpc.ts`: The tRPC client instance.
-- `/src/shared`: **Shared Code**. Code to share between the client and server
+    - `game.html`: The main React entry point (Expanded View) — Desk | Wiki | Archive | Settings.
+    - `splash.html`: The initial React entry point (Inline View). Keep it fast.
+  - `components/`: Desk, Wiki, Archive, Settings UI.
+- `/src/shared`: **Shared Code**. Types and constants shared between client and server.
 
-## Data Fetching (tRPC)
+## Data Fetching (REST)
 
-This project uses tRPC for communication between the client and server.
-
-1. **Define Procedure**: Add a new query or mutation in `src/server/trpc.ts`.
-2. **Call in Client**: Use `trpc.procedureName.query()` or `.mutate()` in your React components.
+1. **Define route**: Add handlers under `src/server/routes/api/`.
+2. **Call in Client**: Use `apiFetch` from `src/client/lib/api.ts`.
 
 ## Frontend
 

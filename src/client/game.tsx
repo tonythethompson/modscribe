@@ -1,105 +1,71 @@
 import './index.css';
 
-import { StrictMode, useEffect, useState } from 'react';
+import { StrictMode, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { navigateTo } from '@devvit/web/client';
-import { trpc } from './trpc';
-import type { inferRouterOutputs } from '@trpc/server';
-import type { AppRouter } from '../server/trpc';
+import { AppShell, type AppTab } from './components/AppShell.js';
+import { DeskView } from './components/desk/DeskView.js';
+import { WikiView } from './components/wiki/WikiView.js';
+import { ArchiveView } from './components/archive/ArchiveView.js';
+import { SettingsView } from './components/settings/SettingsView.js';
+import { useToast } from './hooks/useToast.js';
+import { apiFetch } from './lib/api.js';
 
-type RouterOutputs = inferRouterOutputs<AppRouter>;
-
-export const App = () => {
-  const [init, setInit] = useState<RouterOutputs['init']['get'] | null>(null);
-
-  const fetchInit = async () => {
-    const data = await trpc.init.get.query();
-    setInit(data);
-  };
+const App = () => {
+  const [activeTab, setActiveTab] = useState<AppTab>('desk');
+  const [deskPending, setDeskPending] = useState(0);
+  const [subredditName, setSubredditName] = useState('modscribe');
+  const [accessDenied, setAccessDenied] = useState(false);
+  const { toast, showToast } = useToast();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchInit();
+    void apiFetch<{ subredditName: string }>('/api/inbox/meta')
+      .then((data) => setSubredditName(data.subredditName))
+      .catch(() => {});
   }, []);
 
-  const [loading, setLoading] = useState(false);
-  const { username, count } = init ?? { count: 0 };
+  const handleToast = useCallback(
+    (msg: string) => {
+      if (msg === 'Access Denied') setAccessDenied(true);
+      showToast(msg);
+    },
+    [showToast]
+  );
 
-  const increment = async () => {
-    setLoading(true);
-    const result = await trpc.counter.increment.mutate();
-    setInit((prev) => (prev ? { ...prev, count: result.count } : null));
-    setLoading(false);
-  };
-
-  const decrement = async () => {
-    setLoading(true);
-    const result = await trpc.counter.decrement.mutate();
-    setInit((prev) => (prev ? { ...prev, count: result.count } : null));
-    setLoading(false);
-  };
+  if (accessDenied) {
+    return (
+      <div className="layout">
+        <header className="topbar">
+          <span className="topbar-logo">ModScribe</span>
+        </header>
+        <div className="panel">
+          <div className="empty">
+            <div className="empty-title">Moderator access only</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center gap-4 bg-white dark:bg-gray-900">
-      <img
-        className="mx-auto w-1/2 max-w-[250px] object-contain"
-        src="/snoo.png"
-        alt="Snoo"
-      />
-      <div className="flex flex-col items-center gap-2">
-        <h1 className="text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {username ? `Hey ${username} 👋` : ''}
-        </h1>
-        <p className="text-center text-base text-gray-600 dark:text-gray-300">
-          Edit{' '}
-          <span className="rounded bg-[#e5ebee] px-1 py-0.5 dark:bg-gray-700">
-            src/client/game.tsx
-          </span>{' '}
-          to get started.
-        </p>
-      </div>
-      <div className="mt-5 flex items-center justify-center">
-        <button
-          className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-[#d93900] font-mono text-[2.5em] leading-none text-white transition-colors hover:bg-[#c23300] dark:bg-orange-600 dark:hover:bg-orange-700"
-          onClick={decrement}
-          disabled={loading}
-        >
-          -
-        </button>
-        <span className="mx-5 min-w-[50px] text-center text-[1.8em] leading-none font-medium text-gray-900 dark:text-white">
-          {loading ? '...' : count}
-        </span>
-        <button
-          className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-[#d93900] font-mono text-[2.5em] leading-none text-white transition-colors hover:bg-[#c23300] dark:bg-orange-600 dark:hover:bg-orange-700"
-          onClick={increment}
-          disabled={loading}
-        >
-          +
-        </button>
-      </div>
-      <footer className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-3 text-[0.8em] text-gray-600 dark:text-gray-400">
-        <button
-          className="cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-          onClick={() => navigateTo('https://developers.reddit.com/docs')}
-        >
-          Docs
-        </button>
-        <span className="text-gray-300 dark:text-gray-600">|</span>
-        <button
-          className="cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-          onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
-        >
-          r/Devvit
-        </button>
-        <span className="text-gray-300 dark:text-gray-600">|</span>
-        <button
-          className="cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-          onClick={() => navigateTo('https://discord.com/invite/R7yu2wh9Qz')}
-        >
-          Discord
-        </button>
-      </footer>
-    </div>
+    <AppShell
+      activeTab={activeTab}
+      deskPending={deskPending}
+      onTabChange={setActiveTab}
+      toast={toast && <div key={toast.key} className="toast">{toast.message}</div>}
+    >
+      {activeTab === 'desk' && (
+        <DeskView
+          subredditName={subredditName}
+          showToast={handleToast}
+          onPendingChange={setDeskPending}
+        />
+      )}
+      {activeTab === 'wiki' && (
+        <WikiView subredditName={subredditName} showToast={handleToast} />
+      )}
+      {activeTab === 'archive' && <ArchiveView showToast={handleToast} />}
+      {activeTab === 'settings' && <SettingsView showToast={handleToast} />}
+    </AppShell>
   );
 };
 

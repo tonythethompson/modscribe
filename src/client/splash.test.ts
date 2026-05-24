@@ -25,25 +25,17 @@ afterEach(() => {
 });
 
 describe('Splash', () => {
-  it('clicking the "Docs" footer button calls navigateTo(...)', async () => {
+  it('clicking Open Review Dashboard calls requestExpandedMode', async () => {
     document.body.innerHTML = '<div id="root"></div>';
 
-    // `src/splash.tsx` renders immediately on import (createRoot(...).render(...))
     await import('./splash');
-
-    // Let React commit the initial render.
     await new Promise((r) => setTimeout(r, 0));
 
-    const docsButton = Array.from(document.querySelectorAll('button')).find(
-      (b) => /docs/i.test(b.textContent ?? '')
-    );
-    expect(docsButton).toBeTruthy();
+    const openButton = document.querySelector('#open-dashboard-btn');
+    expect(openButton).toBeTruthy();
 
-    docsButton!.click();
+    openButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    expect(navigateToMock).toHaveBeenCalledTimes(1);
-    expect(navigateToMock).toHaveBeenCalledWith(
-      'https://developers.reddit.com/docs'
-    );
+    expect(requestExpandedModeMock).toHaveBeenCalled();
   });
 });
